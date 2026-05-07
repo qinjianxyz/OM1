@@ -22,6 +22,13 @@ ROS2 hardware connectors.
 ## Run
 
 ```bash
+chmod +x hackathon/run_rove_demo.sh
+hackathon/run_rove_demo.sh
+```
+
+Manual equivalent:
+
+```bash
 uv run src/cli.py validate-config rove_useful_patrol
 uv run src/cli.py modes rove_useful_patrol
 uv run src/run.py rove_useful_patrol --log-level WARNING
