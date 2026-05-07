@@ -24,12 +24,21 @@ Run:
 export OM_API_KEY="<your OpenMind key>"
 uv run src/cli.py validate-config om1_builder_captain
 uv run src/cli.py modes om1_builder_captain
-uv run src/run.py start om1_builder_captain
+uv run src/run.py om1_builder_captain
 ```
 
 Open WebSim at http://localhost:8000.
 
+The fork is public at https://github.com/qinjianxyz/OM1, so judges can open the
+config-file link directly from the pushed branch.
+
+If WebSim opens but LLM or speech calls show `401 malformed API key`, export the
+OpenMind Portal key for the event:
+
+```bash
+export OM_API_KEY="<your OpenMind key>"
+```
+
 Demo prompt:
 
 > What should I build tonight, and how do I submit it cleanly?
-
