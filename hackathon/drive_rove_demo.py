@@ -79,11 +79,22 @@ async def run_snapshot() -> None:
     print_state("current WebSim state", await read_websim_state())
 
 
+async def run_story() -> None:
+    print("waiting for baseline patrol receipt...")
+    state, ok = await wait_for_action("walk", timeout_seconds=120)
+    print_state("baseline patrol receipt", state)
+    if not ok:
+        raise SystemExit("baseline patrol action was not observed before timeout")
+
+    print("\ntriggering safe dance cue...")
+    await run_dance()
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Drive Rove's OM1 WebSim demo.")
     parser.add_argument(
         "scenario",
-        choices=("snapshot", "dance", "submission"),
+        choices=("snapshot", "dance", "submission", "story"),
         help="Demo cue to send.",
     )
     args = parser.parse_args()
@@ -94,6 +105,8 @@ async def main() -> None:
         await run_dance()
     elif args.scenario == "submission":
         await run_submission()
+    elif args.scenario == "story":
+        await run_story()
 
 
 if __name__ == "__main__":

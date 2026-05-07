@@ -21,6 +21,18 @@ ROS2 hardware connectors.
 
 ## Run
 
+One-command stage demo:
+
+```bash
+chmod +x hackathon/show_rove_demo.sh
+hackathon/show_rove_demo.sh
+```
+
+It restarts OM1, opens the browser console, waits for a baseline patrol action,
+then triggers and verifies the safe dance action.
+
+Service-only restart:
+
 ```bash
 chmod +x hackathon/run_rove_demo.sh
 hackathon/run_rove_demo.sh
@@ -45,6 +57,7 @@ Drive a live moment from another terminal:
 ```bash
 uv run python hackathon/drive_rove_demo.py snapshot
 uv run python hackathon/drive_rove_demo.py dance
+uv run python hackathon/drive_rove_demo.py story
 ```
 
 The driver sends a MockInput cue, then reads WebSim back as a receipt. For the
