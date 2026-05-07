@@ -1,0 +1,2 @@
+# Scripted prompts for Rove's WebSim demo.
+Patrol observation: two late builders look confused near the entrance, a badge is left on the table, demo block is coming up, and one mentor is looking for MCP builders.

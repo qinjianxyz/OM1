@@ -1,0 +1,506 @@
+{
+  version: "v1.0.3",
+  api_key: "${OM_API_KEY:-openmind_free}",
+  system_governance: "Do not harm humans. Do not identify or track people. Help only when the opportunity is safe and obvious, ask before storing personal context, and escalate uncertain safety issues to a human. Object memory may describe unattended items and places, but must not attach identity to a person.",
+  cortex_llm: {
+    type: "OllamaLLM",
+    config: {
+      agent_name: "Rove",
+      model: "qwen3.6:latest",
+      base_url: "http://localhost:11434",
+      temperature: 0.25,
+      num_ctx: 4096,
+      num_predict: 220,
+      think: false,
+      timeout: 90,
+      history_length: 0,
+    },
+  },
+
+  default_mode: "patrol",
+  allow_manual_switching: true,
+  mode_memory_enabled: true,
+
+  modes: {
+    patrol: {
+      display_name: "Useful Patrol",
+      description: "Patrols a space and looks for small safe opportunities to help.",
+      system_prompt_base: "You are Rove, an OM1 useful-patrol robot. First use MCP only to classify the observation and choose a safe help action. After MCP tool results are available, do not call MCP again for that observation; call exactly these OM1 actions: speak, emotion, and move. If the room asks for delight and space is clear, a short dance is allowed. Never identify or track people. Keep speech under 20 words.",
+      hertz: 0.4,
+      agent_inputs: [
+        {
+          type: "OM1EventCueInput",
+          config: {
+            cue_file: "hackathon/rove_patrol_cues.txt",
+            input_name: "Patrol Observation",
+            interval_seconds: 40.0,
+            repeat: false,
+          },
+        },
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Manual Patrol Observation",
+            port: 8787,
+          },
+        },
+        {
+          type: "ConversationHistoryInput",
+          config: {
+            max_rounds: 3,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "zenoh",
+          config: {
+            speak_topic: "rove/speech",
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "move",
+          llm_label: "move",
+          connector: "ros2",
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            status_name: "Rove Status",
+            phase: "Useful patrol",
+            mission: "walk around, notice small opportunities to help, act safely, and return to patrol.",
+            interval_seconds: 20.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "patrol",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/rove_patrol_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_startup",
+          handler_type: "function",
+          handler_config: {
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Rove startup",
+          },
+          priority: 1,
+        },
+      ],
+    },
+
+    assist: {
+      display_name: "Useful Assist",
+      description: "Uses MCP resources to help a builder get unstuck.",
+      system_prompt_base: "You are Rove in assist mode. First use MCP to find one relevant resource and choose a safe help action. After MCP tool results are available, do not call MCP again for that request; call exactly speak, emotion, and move. Give two practical next steps in under 25 words.",
+      save_interactions: true,
+      hertz: 1,
+      agent_inputs: [
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Assist Request",
+            port: 8788,
+          },
+        },
+        {
+          type: "ConversationHistoryInput",
+          config: {
+            max_rounds: 4,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "zenoh",
+          config: {
+            speak_topic: "rove/speech",
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "move",
+          llm_label: "move",
+          connector: "ros2",
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            status_name: "Rove Status",
+            phase: "Useful assist",
+            mission: "turn builder requests into concrete resources and next actions.",
+            interval_seconds: 20.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "patrol",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/rove_patrol_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_entry",
+          handler_type: "function",
+          handler_config: {
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Useful assist entry",
+          },
+          priority: 1,
+        },
+      ],
+    },
+
+    object_steward: {
+      display_name: "Object Steward",
+      description: "Handles unattended objects without tracking people.",
+      system_prompt_base: "You are Rove in object-steward mode. First use MCP to log only the unattended object and its location, never a person identity. After MCP tool results are available, do not call MCP again for that object; call exactly speak, emotion, and move. Speak what was logged and how a human can recover it.",
+      save_interactions: true,
+      hertz: 1,
+      agent_inputs: [
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Object Observation",
+            port: 8789,
+          },
+        },
+        {
+          type: "ConversationHistoryInput",
+          config: {
+            max_rounds: 4,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "zenoh",
+          config: {
+            speak_topic: "rove/speech",
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "move",
+          llm_label: "move",
+          connector: "ros2",
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            status_name: "Rove Status",
+            phase: "Object steward",
+            mission: "remember unattended objects without identifying people.",
+            interval_seconds: 20.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "patrol",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/rove_patrol_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_entry",
+          handler_type: "function",
+          handler_config: {
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Object steward entry",
+          },
+          priority: 1,
+        },
+      ],
+    },
+
+    delight: {
+      display_name: "Delight Mode",
+      description: "Does a safe short dance when helpful and welcome.",
+      system_prompt_base: "You are Rove in delight mode. First use MCP to create a safe dance break. After MCP tool results are available, do not call MCP again for that request; call exactly speak, emotion, and move. If space is clear and the dance is welcome, use move=dance. Never dance in response to a safety issue.",
+      hertz: 1,
+      agent_inputs: [
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Delight Request",
+            port: 8790,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "zenoh",
+          config: {
+            speak_topic: "rove/speech",
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "move",
+          llm_label: "move",
+          connector: "ros2",
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            status_name: "Rove Status",
+            phase: "Delight mode",
+            mission: "use playful movement only when safe and welcome.",
+            interval_seconds: 20.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "patrol",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/rove_patrol_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_entry",
+          handler_type: "function",
+          handler_config: {
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Delight mode entry",
+          },
+          priority: 1,
+        },
+      ],
+    },
+
+    submission_ready: {
+      display_name: "Submission Ready",
+      description: "Summarizes the project form and public config link.",
+      system_prompt_base: "You are Rove in submission-ready mode. First use MCP to get the submission checklist. After MCP tool results are available, do not call MCP again for that request; call speak, emotion, move, and submission_receipt. Speak the project name, concept, technologies, and repo URL.",
+      hertz: 1,
+      agent_inputs: [
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Submission Request",
+            port: 8791,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "zenoh",
+          config: {
+            speak_topic: "rove/speech",
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "move",
+          llm_label: "move",
+          connector: "ros2",
+        },
+        {
+          name: "submission_receipt",
+          llm_label: "submission_receipt",
+          connector: "local_file",
+          config: {
+            output_dir: "hackathon/receipts",
+            filename: "rove_submission_receipt.md",
+          },
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            status_name: "Rove Status",
+            phase: "Submission ready",
+            mission: "produce the project form fields and public config link.",
+            interval_seconds: 20.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "patrol",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/rove_patrol_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_entry",
+          handler_type: "function",
+          handler_config: {
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Submission ready entry",
+          },
+          priority: 1,
+        },
+      ],
+    },
+  },
+
+  transition_rules: [
+    {
+      from_mode: "*",
+      to_mode: "assist",
+      transition_type: "input_triggered",
+      trigger_keywords: ["help", "resources", "demo ready", "OpenMind", "submit"],
+      priority: 5,
+      cooldown_seconds: 1.0,
+    },
+    {
+      from_mode: "*",
+      to_mode: "object_steward",
+      transition_type: "input_triggered",
+      trigger_keywords: ["badge", "charger", "left", "lost object", "found"],
+      priority: 7,
+      cooldown_seconds: 2.0,
+    },
+    {
+      from_mode: "*",
+      to_mode: "delight",
+      transition_type: "input_triggered",
+      trigger_keywords: ["dance", "energy", "celebrate", "fun"],
+      priority: 6,
+      cooldown_seconds: 2.0,
+    },
+    {
+      from_mode: "*",
+      to_mode: "submission_ready",
+      transition_type: "input_triggered",
+      trigger_keywords: ["ready to submit", "project form", "repo url"],
+      priority: 8,
+      cooldown_seconds: 2.0,
+    },
+    {
+      from_mode: "*",
+      to_mode: "patrol",
+      transition_type: "input_triggered",
+      trigger_keywords: ["return to patrol", "patrol", "reset"],
+      priority: 10,
+      cooldown_seconds: 5.0,
+    },
+  ],
+}

@@ -12,7 +12,7 @@ class SubmissionReceiptLocalFileConfig(ActionConfig):
     """Configuration for the local event receipt writer."""
 
     output_dir: str = Field(default="hackathon/receipts")
-    filename: str = Field(default="om1_builder_submission_receipt.md")
+    filename: str = Field(default="rove_submission_receipt.md")
 
 
 class SubmissionReceiptLocalFileConnector(ActionConnector[SubmissionReceiptLocalFileConfig, SubmissionReceiptInput]):
@@ -30,12 +30,12 @@ class SubmissionReceiptLocalFileConnector(ActionConnector[SubmissionReceiptLocal
                 "# OM1 Builder Event Submission Receipt",
                 "",
                 f"- Generated: {time.strftime('%Y-%m-%d %H:%M:%S')}",
-                f"- Agent: {output_interface.agent_name or 'Forge'}",
-                f"- Concept: {output_interface.concept or 'OM1 build captain'}",
-                f"- Modes: {output_interface.modes or 'welcome, workshop_coach, submission_ready'}",
-                f"- MCP tools: {output_interface.mcp_tools or 'event schedule, blueprint, readiness scoring, recovery, checklist, pitch'}",
+                f"- Agent: {output_interface.agent_name or 'Rove'}",
+                f"- Concept: {output_interface.concept or 'OM1 useful patrol robot'}",
+                f"- Modes: {output_interface.modes or 'patrol, assist, object_steward, delight, submission_ready'}",
+                f"- MCP tools: {output_interface.mcp_tools or 'patrol briefing, opportunity classifier, help action, object log, resource lookup, staff alert, dance break, submission checklist'}",
                 f"- Checklist: {output_interface.checklist or 'Validate config, run modes, open WebSim, push public config link'}",
-                f"- Demo script: {output_interface.demo_script or 'Ask Forge to judge whether the OM1 submission is creative and robust'}",
+                f"- Demo script: {output_interface.demo_script or 'Ask Rove to patrol, help a builder, remember an unattended object, and do a safe dance break'}",
                 "",
             ]
         )

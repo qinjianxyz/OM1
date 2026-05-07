@@ -193,6 +193,9 @@ class MCPOrchestrator:
             f"[Tool Results]\n{result_block}\n\n"
             f"[Next Step]\n"
             f"Do NOT re-call tools you have already called successfully. "
+            f"If a tool result contains action.speech, action.emotion, and action.move, "
+            f"call the OM1 functions speak, emotion, and move with those values. "
+            f"The final answer must be OM1 action function calls, not prose. "
             f"If all needed info is available, respond with your final actions. "
             f"Otherwise call only the necessary tools in one batch.\n"
         )

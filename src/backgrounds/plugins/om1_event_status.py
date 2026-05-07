@@ -11,6 +11,9 @@ class OM1EventStatusConfig(BackgroundConfig):
 
     status_name: str = Field(default="Event Status")
     phase: str = Field(default="Build block")
+    mission: str = Field(
+        default="build a multi-mode OM1 config, verify it, push to a fork, and submit the config-file link.",
+    )
     interval_seconds: float = Field(default=3.0)
 
 
@@ -22,10 +25,6 @@ class OM1EventStatusBackground(Background[OM1EventStatusConfig]):
         self.io_provider = IOProvider()
 
     def run(self) -> None:
-        value = (
-            f"{self.config.phase}: build a multi-mode OM1 config, verify it, "
-            "push to a fork, and submit the config-file link."
-        )
+        value = f"{self.config.phase}: {self.config.mission}"
         self.io_provider.add_input(self.config.status_name, value, time.time())
         self.sleep(self.config.interval_seconds)
-

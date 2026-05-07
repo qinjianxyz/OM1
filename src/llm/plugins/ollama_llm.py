@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import time
 import typing as T
 
@@ -29,12 +30,18 @@ class OllamaLLMConfig(LLMConfig):
         Sampling temperature (0.0 - 1.0)
     num_ctx : int
         Context window size
+    num_predict : int
+        Maximum number of tokens to generate
+    think : bool
+        Whether to enable model-side thinking when supported by Ollama
     """
 
     base_url: T.Optional[str] = Field(default="http://localhost:11434", description="Base URL for Ollama API")
     model: T.Optional[str] = Field(default="llama3.2", description="Ollama model name")
     temperature: float = Field(default=0.7, description="Sampling temperature")
     num_ctx: int = Field(default=4096, description="Context window size")
+    num_predict: T.Optional[int] = Field(default=None, description="Maximum number of tokens to generate")
+    think: T.Optional[bool] = Field(default=None, description="Enable model-side thinking if supported")
     timeout: T.Optional[int] = Field(
         default=120,
         description="Request timeout in seconds (longer for local inference)",
@@ -78,6 +85,46 @@ class OllamaLLM(LLM[R]):
 
         logging.info(f"OllamaLLM initialized with model: {config.model}")
         logging.info(f"Ollama endpoint: {self._chat_url}")
+
+    def _parse_text_tool_calls(self, content: str) -> T.List[T.Dict]:
+        """Parse simple text tool-call fallbacks produced by some local models."""
+        available_names = {
+            schema.get("function", {}).get("name", "")
+            for schema in self.function_schemas
+        }
+        calls = []
+        pattern = re.compile(
+            r"^\s*(?:[-*]\s*)?([A-Za-z_][\w]*)\s*\(\s*(?:\"([^\"]*)\"|'([^']*)'|([^)]*?))\s*\)\s*,?\s*$",
+            re.MULTILINE,
+        )
+        for match in pattern.finditer(content):
+            function_name = match.group(1)
+            if function_name not in available_names:
+                continue
+            action_value = next((group for group in match.groups()[1:] if group is not None), "")
+            calls.append(
+                {
+                    "function": {
+                        "name": function_name,
+                        "arguments": json.dumps({"action": action_value.strip()}),
+                    }
+                }
+            )
+        line_pattern = re.compile(r"^\s*(?:[-*]\s*)?([A-Za-z_][\w]*)\s*:\s*(.+?)\s*$", re.MULTILINE)
+        for match in line_pattern.finditer(content):
+            function_name = match.group(1)
+            if function_name not in available_names:
+                continue
+            action_value = match.group(2).strip().strip("\"'")
+            calls.append(
+                {
+                    "function": {
+                        "name": function_name,
+                        "arguments": json.dumps({"action": action_value}),
+                    }
+                }
+            )
+        return calls
 
     def _convert_tools_to_ollama_format(self) -> T.List[T.Dict]:
         """
@@ -147,6 +194,10 @@ class OllamaLLM(LLM[R]):
                     "num_ctx": self._config.num_ctx,
                 },
             }
+            if self._config.num_predict is not None:
+                payload["options"]["num_predict"] = self._config.num_predict
+            if self._config.think is not None:
+                payload["think"] = self._config.think
 
             tools = self._convert_tools_to_ollama_format()
             if tools:
@@ -194,6 +245,16 @@ class OllamaLLM(LLM[R]):
                 actions = convert_function_calls_to_actions(function_call_data)
                 result_model = CortexOutputModel(actions=actions)
                 return T.cast(R, result_model)
+
+            content = message.get("content", "")
+            if content:
+                logging.info(f"Ollama response without tool calls: {content}")
+                parsed_tool_calls = self._parse_text_tool_calls(content)
+                if parsed_tool_calls:
+                    logging.info(f"Parsed {len(parsed_tool_calls)} text tool calls from Ollama content")
+                    actions = convert_function_calls_to_actions(parsed_tool_calls)
+                    result_model = CortexOutputModel(actions=actions)
+                    return T.cast(R, result_model)
 
             return None
 
