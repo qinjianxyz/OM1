@@ -1,0 +1,322 @@
+{
+  version: "v1.0.3",
+  api_key: "${OM_API_KEY:-openmind_free}",
+  system_governance: "Do not harm humans. Do not invent event requirements. Help the builder create an OM1-native agent using the workshop primitives: modes, inputs, actions, backgrounds, lifecycle hooks, transition rules, WebSim, and MCP.",
+  cortex_llm: {
+    type: "OpenAILLM",
+    config: {
+      agent_name: "Forge",
+      history_length: 8,
+      model: "gpt-4.1",
+    },
+  },
+
+  default_mode: "welcome",
+  allow_manual_switching: true,
+  mode_memory_enabled: true,
+
+  modes: {
+    welcome: {
+      display_name: "Welcome",
+      description: "Greets the judge and frames Forge as an OM1 builder-event agent.",
+      system_prompt_base: "You are Forge, an OM1 robot build captain at the builder event. Greet the judge briefly. Explain that you can help turn an idea into a valid OM1 config and submission link. If the user asks what to build, how to use MCP, or how to submit, move toward workshop coach mode.",
+      hertz: 0.5,
+      agent_inputs: [
+        {
+          type: "GoogleASRInput",
+          config: {
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Manual Builder Prompt",
+            port: 8787,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "concurrent",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "elevenlabs_tts",
+          config: {
+            voice_id: "TbMNBJ27fH2U0VgpSNko",
+            silence_rate: 0,
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            phase: "Welcome",
+            interval_seconds: 3.0,
+          },
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_startup",
+          handler_type: "message",
+          handler_config: {
+            message: "Forge online. I can help build and submit an OM1-native agent.",
+          },
+          priority: 1,
+        },
+      ],
+    },
+
+    workshop_coach: {
+      display_name: "Workshop Coach",
+      description: "Uses MCP tools to turn event intent into an OM1-native build plan.",
+      system_prompt_base: "You are Forge in workshop coach mode. First use MCP tools to get the event schedule, recommend an OM1 agent blueprint, and get the submission checklist. Then speak a concise plan with exactly four parts: concept, OM1 primitives used, demo flow, and submission path. Keep it under 45 seconds.",
+      save_interactions: true,
+      hertz: 1,
+      agent_inputs: [
+        {
+          type: "OM1EventCueInput",
+          config: {
+            cue_file: "hackathon/om1_event_cues.txt",
+            input_name: "Builder Prompt",
+            interval_seconds: 2.0,
+            repeat: false,
+          },
+        },
+        {
+          type: "GoogleASRInput",
+          config: {
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Manual Builder Prompt",
+            port: 8788,
+          },
+        },
+        {
+          type: "ConversationHistoryInput",
+          config: {
+            max_rounds: 3,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "elevenlabs_tts",
+          config: {
+            voice_id: "TbMNBJ27fH2U0VgpSNko",
+            silence_rate: 0,
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "submission_receipt",
+          llm_label: "submission_receipt",
+          connector: "local_file",
+          config: {
+            output_dir: "hackathon/receipts",
+            filename: "om1_builder_submission_receipt.md",
+          },
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            phase: "Workshop coach",
+            interval_seconds: 3.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "event",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/om1_event_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_entry",
+          handler_type: "message",
+          handler_config: {
+            message: "Workshop coach mode. I will use MCP tools to shape a valid OM1 submission.",
+          },
+          priority: 1,
+        },
+      ],
+    },
+
+    submission_ready: {
+      display_name: "Submission Ready",
+      description: "Produces the final checklist, pitch, and local receipt.",
+      system_prompt_base: "You are Forge in submission-ready mode. Use MCP tools for the checklist and pitch. Then write a submission_receipt action. Speak only the final config file path, demo command, and one-sentence pitch.",
+      hertz: 1,
+      agent_inputs: [
+        {
+          type: "GoogleASRInput",
+          config: {
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Manual Builder Prompt",
+            port: 8789,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "elevenlabs_tts",
+          config: {
+            voice_id: "TbMNBJ27fH2U0VgpSNko",
+            silence_rate: 0,
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "submission_receipt",
+          llm_label: "submission_receipt",
+          connector: "local_file",
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            phase: "Submission ready",
+            interval_seconds: 3.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "event",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/om1_event_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_entry",
+          handler_type: "message",
+          handler_config: {
+            message: "Submission mode. I will prepare the final checklist and receipt.",
+          },
+          priority: 1,
+        },
+      ],
+    },
+  },
+
+  transition_rules: [
+    {
+      from_mode: "welcome",
+      to_mode: "workshop_coach",
+      transition_type: "input_triggered",
+      trigger_keywords: [
+        "what should I build",
+        "build",
+        "mcp",
+        "agent",
+        "project",
+        "submission",
+        "config file",
+      ],
+      priority: 5,
+      cooldown_seconds: 1.0,
+    },
+    {
+      from_mode: "workshop_coach",
+      to_mode: "submission_ready",
+      transition_type: "input_triggered",
+      trigger_keywords: [
+        "ready to submit",
+        "final checklist",
+        "submit",
+        "demo pitch",
+      ],
+      priority: 5,
+      cooldown_seconds: 2.0,
+    },
+    {
+      from_mode: "*",
+      to_mode: "welcome",
+      transition_type: "input_triggered",
+      trigger_keywords: [
+        "reset",
+        "start over",
+        "welcome mode",
+      ],
+      priority: 10,
+      cooldown_seconds: 5.0,
+    },
+  ],
+}
