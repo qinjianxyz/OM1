@@ -1,0 +1,299 @@
+{
+  version: "v1.0.3",
+  api_key: "${OM_API_KEY:-openmind_free}",
+  system_governance: "Do not harm humans. Do not overstate engineering evidence. Always separate verified bundle integrity, analytic decision evidence, and production certification. If evidence is partial, say exactly what is partial.",
+  cortex_llm: {
+    type: "OpenAILLM",
+    config: {
+      agent_name: "Forge",
+      history_length: 8,
+      model: "gpt-4.1",
+    },
+  },
+
+  default_mode: "welcome",
+  allow_manual_switching: true,
+  mode_memory_enabled: true,
+
+  modes: {
+    welcome: {
+      display_name: "Welcome",
+      description: "Briefly frames Forge as an embodied engineering reviewer.",
+      system_prompt_base: "You are Forge, an OM1 robot agent at a builder event. Greet the judge in one sentence and offer to review the Anvil robot-arm bracket bundle. If the user asks whether a simulation can be trusted or which bracket should ship, switch context toward bundle review.",
+      hertz: 0.5,
+      agent_inputs: [
+        {
+          type: "GoogleASRInput",
+          config: {
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Manual Judge Prompt",
+            port: 8777,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "concurrent",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "elevenlabs_tts",
+          config: {
+            voice_id: "TbMNBJ27fH2U0VgpSNko",
+            silence_rate: 0,
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+      ],
+      backgrounds: [
+        {
+          type: "AnvilReviewerStatusBackground",
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_startup",
+          handler_type: "message",
+          handler_config: {
+            message: "Forge online. I can review the Anvil bracket evidence bundle and state the honest limits.",
+          },
+          priority: 1,
+        },
+      ],
+    },
+
+    bundle_review: {
+      display_name: "Bundle Review",
+      description: "Uses MCP tools to inspect Anvil provenance and recommend a bracket variant.",
+      system_prompt_base: "You are Forge in bundle-review mode. The judge wants to know whether the robot-arm bracket simulation can be trusted and which variant should ship. First use MCP tools to summarize the bracket case, verify bundle integrity, and recommend the variant. Then answer with exactly three parts: (1) decision, (2) evidence, (3) honest limitation. Also write a review_receipt action with verdict, decision, evidence, limitation, and command. Keep spoken output under 45 seconds.",
+      save_interactions: true,
+      hertz: 1,
+      agent_inputs: [
+        {
+          type: "AnvilBundleCueInput",
+          config: {
+            cue_file: "hackathon/demo_cues.txt",
+            input_name: "Judge Question",
+            interval_seconds: 2.0,
+            repeat: false,
+          },
+        },
+        {
+          type: "GoogleASRInput",
+          config: {
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Manual Judge Prompt",
+            port: 8778,
+          },
+        },
+        {
+          type: "ConversationHistoryInput",
+          config: {
+            max_rounds: 3,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "elevenlabs_tts",
+          config: {
+            voice_id: "TbMNBJ27fH2U0VgpSNko",
+            silence_rate: 0,
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "review_receipt",
+          llm_label: "review_receipt",
+          connector: "local_file",
+          config: {
+            output_dir: "hackathon/receipts",
+            filename: "latest_review_receipt.md",
+          },
+        },
+      ],
+      backgrounds: [
+        {
+          type: "AnvilReviewerStatusBackground",
+          config: {
+            status_name: "Reviewer Status",
+            bundle_id: "bracket-decision-pack-hackathon",
+            interval_seconds: 3.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "anvil",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/anvil_review_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_entry",
+          handler_type: "message",
+          handler_config: {
+            message: "Bundle review mode. I will inspect the evidence before giving a recommendation.",
+          },
+          priority: 1,
+        },
+        {
+          hook_type: "on_exit",
+          handler_type: "message",
+          handler_config: {
+            message: "Leaving bundle review mode.",
+          },
+          priority: 0,
+        },
+      ],
+    },
+
+    escalation: {
+      display_name: "Escalation",
+      description: "States what evidence is still needed before production signoff.",
+      system_prompt_base: "You are Forge in escalation mode. The right behavior is to name missing evidence before production signoff: Tet10 or higher-order bending validation, fatigue, manufacturing tolerances, and experimental correlation. Do not call the current bundle certified.",
+      hertz: 0.2,
+      agent_inputs: [
+        {
+          type: "GoogleASRInput",
+          config: {
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Manual Judge Prompt",
+            port: 8779,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "concurrent",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "elevenlabs_tts",
+          config: {
+            voice_id: "TbMNBJ27fH2U0VgpSNko",
+            silence_rate: 0,
+            enable_tts_interrupt: true,
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+      ],
+      backgrounds: [
+        {
+          type: "AnvilReviewerStatusBackground",
+        },
+      ],
+    },
+  },
+
+  transition_rules: [
+    {
+      from_mode: "welcome",
+      to_mode: "bundle_review",
+      transition_type: "input_triggered",
+      trigger_keywords: [
+        "trust this simulation",
+        "which variant",
+        "which bracket",
+        "bundle review",
+        "should ship",
+        "review the anvil bundle",
+      ],
+      priority: 5,
+      cooldown_seconds: 1.0,
+    },
+    {
+      from_mode: "bundle_review",
+      to_mode: "escalation",
+      transition_type: "input_triggered",
+      trigger_keywords: [
+        "production signoff",
+        "certified",
+        "what is missing",
+        "what evidence is missing",
+      ],
+      priority: 4,
+      cooldown_seconds: 2.0,
+    },
+    {
+      from_mode: "*",
+      to_mode: "welcome",
+      transition_type: "input_triggered",
+      trigger_keywords: [
+        "reset",
+        "start over",
+        "welcome mode",
+      ],
+      priority: 10,
+      cooldown_seconds: 5.0,
+    },
+  ],
+}

@@ -1,0 +1,9 @@
+{
+  "solver": "anvil-structural-analytical",
+  "status": "decision_ready",
+  "physics": "linear-elastic structural-static plus modal closed-form evidence",
+  "customer_question": "Which robot-arm shoulder-mount variant should go to first-article prototype?",
+  "decision": "Ship V2-thickened-rib to prototype review.",
+  "reproduction_command": "python3 hackathon/anvil_review_mcp.py"
+}
+

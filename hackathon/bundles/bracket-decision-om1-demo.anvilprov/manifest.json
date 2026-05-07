@@ -1,0 +1,30 @@
+{
+  "schema_version": "anvilprov-0.4.0",
+  "bundle_id": "bracket-decision-om1-demo",
+  "generated_at": "2026-05-06T20:00:00-07:00",
+  "title": "OM1 demo bracket decision proof bundle",
+  "description": "Small self-contained Anvil decision bundle for the OM1 builder event.",
+  "artifacts": [
+    {
+      "path": "decision-evidence.json",
+      "sha256": "546170cfab7dc337d339d547a10097040ea4eb8109bbb010e8bb561bc51adc45"
+    },
+    {
+      "path": "solver_state.json",
+      "sha256": "646842b0426b7085e8638a2b2a9a8f31710ed6458d31da750b90fa749bfc17fb"
+    },
+    {
+      "path": "verification_report.md",
+      "sha256": "f3de9315659e86d8bd53e53f445c5ad604be924f2fc87d10fd1550ae5763ed8c"
+    }
+  ],
+  "credibility": {
+    "verdict": "HONEST_PARTIAL",
+    "reproducibility_tier": "T0_static_integrity",
+    "rationale": "Analytical decision snapshot with explicit limits; intended for OM1 demo, not certification."
+  },
+  "provenance": {
+    "source": "projects/anvil-sim/demos/bracket-decision-pack-hackathon README and expected analytical targets",
+    "reproduction_command": "python3 hackathon/anvil_review_mcp.py"
+  }
+}

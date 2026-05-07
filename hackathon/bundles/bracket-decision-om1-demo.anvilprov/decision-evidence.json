@@ -1,0 +1,37 @@
+{
+  "schema_version": "anvil.report.decision_evidence.v1alpha1",
+  "bundle_id": "bracket-decision-om1-demo",
+  "verdict": "HONEST_PARTIAL",
+  "scope": {
+    "claim": "V2-thickened-rib is the recommended prototype variant; V1 is modal-marginal and V3 is disqualified.",
+    "claimed": [
+      "V2 clears safety factor against yield with SF = 8.15 under the e-stop load case.",
+      "V2 clears the 35 Hz servo-loop modal target with loaded f1 = 39.6 Hz.",
+      "The relative ranking is robust to the known Tet4 bending limitation."
+    ],
+    "not_claimed": [
+      "Physical certification",
+      "Fatigue-life prediction",
+      "Absolute Tet4 bending-deflection accuracy"
+    ]
+  },
+  "metrics": {
+    "V1-baseline": {
+      "mass_g": 92.0,
+      "safety_factor_yield": 3.62,
+      "loaded_f1_hz": 21.6
+    },
+    "V2-thickened-rib": {
+      "mass_g": 138.0,
+      "safety_factor_yield": 8.15,
+      "loaded_f1_hz": 39.6
+    },
+    "V3-lightened-cutout": {
+      "mass_g": 61.3,
+      "safety_factor_yield": 2.41,
+      "loaded_f1_hz": 17.6
+    }
+  },
+  "limitation": "Tet4 elements can under-predict bending deflection by 10-30%; upgrade to Tet10 and experimental correlation before production signoff."
+}
+
