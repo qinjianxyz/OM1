@@ -1,13 +1,17 @@
 {
   version: "v1.0.3",
   api_key: "${OM_API_KEY:-openmind_free}",
-  system_governance: "Do not harm humans. Do not invent event requirements. Help the builder create an OM1-native agent using the workshop primitives: modes, inputs, actions, backgrounds, lifecycle hooks, transition rules, WebSim, and MCP.",
+  system_governance: "Do not harm humans. Do not invent event requirements. Help the builder create an OM1-native agent using the workshop primitives: modes, inputs, actions, backgrounds, lifecycle hooks, transition rules, WebSim, and MCP. Prefer local/offline operation when event credits or network access are constrained.",
   cortex_llm: {
-    type: "OpenAILLM",
+    type: "OllamaLLM",
     config: {
       agent_name: "Forge",
+      model: "qwen3.5:latest",
+      base_url: "http://localhost:11434",
+      temperature: 0.2,
+      num_ctx: 4096,
+      timeout: 120,
       history_length: 8,
-      model: "gpt-4.1",
     },
   },
 
@@ -22,12 +26,6 @@
       system_prompt_base: "You are Forge, an OM1 robot build captain at the builder event. Greet the judge briefly. Explain that you can help turn an idea into a valid OM1 config and submission link. If the user asks what to build, how to use MCP, or how to submit, move toward workshop coach mode.",
       hertz: 0.5,
       agent_inputs: [
-        {
-          type: "GoogleASRInput",
-          config: {
-            enable_tts_interrupt: true,
-          },
-        },
         {
           type: "MockInput",
           config: {
@@ -53,11 +51,9 @@
         {
           name: "speak",
           llm_label: "speak",
-          connector: "elevenlabs_tts",
+          connector: "zenoh",
           config: {
-            voice_id: "TbMNBJ27fH2U0VgpSNko",
-            silence_rate: 0,
-            enable_tts_interrupt: true,
+            speak_topic: "om1_builder/speech",
           },
         },
         {
@@ -78,9 +74,11 @@
       lifecycle_hooks: [
         {
           hook_type: "on_startup",
-          handler_type: "message",
+          handler_type: "function",
           handler_config: {
-            message: "Forge online. I can help build and submit an OM1-native agent.",
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Welcome startup",
           },
           priority: 1,
         },
@@ -90,7 +88,7 @@
     workshop_coach: {
       display_name: "Workshop Coach",
       description: "Uses MCP tools to turn event intent into an OM1-native build plan.",
-      system_prompt_base: "You are Forge in workshop coach mode. First use MCP tools to get the event schedule, recommend an OM1 agent blueprint, and get the submission checklist. Then speak a concise plan with exactly four parts: concept, OM1 primitives used, demo flow, and submission path. Keep it under 45 seconds.",
+      system_prompt_base: "You are Forge in workshop coach mode. First use MCP tools to get the event schedule, recommend an OM1 agent blueprint, score readiness, and get a recovery plan. Then speak a concise plan with exactly four parts: concept, OM1 primitives used, robustness plan, and submission path. Keep it under 45 seconds.",
       save_interactions: true,
       hertz: 1,
       agent_inputs: [
@@ -101,12 +99,6 @@
             input_name: "Builder Prompt",
             interval_seconds: 2.0,
             repeat: false,
-          },
-        },
-        {
-          type: "GoogleASRInput",
-          config: {
-            enable_tts_interrupt: true,
           },
         },
         {
@@ -140,11 +132,9 @@
         {
           name: "speak",
           llm_label: "speak",
-          connector: "elevenlabs_tts",
+          connector: "zenoh",
           config: {
-            voice_id: "TbMNBJ27fH2U0VgpSNko",
-            silence_rate: 0,
-            enable_tts_interrupt: true,
+            speak_topic: "om1_builder/speech",
           },
         },
         {
@@ -182,9 +172,100 @@
       lifecycle_hooks: [
         {
           hook_type: "on_entry",
-          handler_type: "message",
+          handler_type: "function",
           handler_config: {
-            message: "Workshop coach mode. I will use MCP tools to shape a valid OM1 submission.",
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Workshop coach entry",
+          },
+          priority: 1,
+        },
+      ],
+    },
+
+    readiness_review: {
+      display_name: "Readiness Review",
+      description: "Stress-tests the agent against judging criteria and no-credit live-demo failure modes.",
+      system_prompt_base: "You are Forge in readiness review mode. Use MCP tools to score the submission and retrieve the failure recovery plan. Speak a tight judge-facing audit: one creative strength, one robustness strength, one live-demo fallback, and one final fix. Do not use paid cloud services; this mode is designed for local Ollama, MockInput, WebSim, local MCP, and local receipt writing.",
+      save_interactions: true,
+      hertz: 1,
+      agent_inputs: [
+        {
+          type: "MockInput",
+          config: {
+            input_name: "Readiness Review Prompt",
+            port: 8790,
+          },
+        },
+        {
+          type: "ConversationHistoryInput",
+          config: {
+            max_rounds: 4,
+          },
+        },
+      ],
+      simulators: [
+        {
+          type: "WebSim",
+          config: {
+            host: "0.0.0.0",
+            port: 8000,
+            tick_rate: 100,
+            auto_reconnect: true,
+            debug_mode: false,
+          },
+        },
+      ],
+      action_execution_mode: "sequential",
+      agent_actions: [
+        {
+          name: "speak",
+          llm_label: "speak",
+          connector: "zenoh",
+          config: {
+            speak_topic: "om1_builder/speech",
+          },
+        },
+        {
+          name: "face",
+          llm_label: "emotion",
+          connector: "avatar",
+        },
+        {
+          name: "submission_receipt",
+          llm_label: "submission_receipt",
+          connector: "local_file",
+          config: {
+            output_dir: "hackathon/receipts",
+            filename: "om1_builder_submission_receipt.md",
+          },
+        },
+      ],
+      backgrounds: [
+        {
+          type: "OM1EventStatusBackground",
+          config: {
+            phase: "Readiness review",
+            interval_seconds: 3.0,
+          },
+        },
+      ],
+      mcp_servers: [
+        {
+          name: "event",
+          transport: "stdio",
+          command: "python3",
+          args: ["hackathon/om1_event_mcp.py"],
+        },
+      ],
+      lifecycle_hooks: [
+        {
+          hook_type: "on_entry",
+          handler_type: "function",
+          handler_config: {
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Readiness review entry",
           },
           priority: 1,
         },
@@ -194,15 +275,9 @@
     submission_ready: {
       display_name: "Submission Ready",
       description: "Produces the final checklist, pitch, and local receipt.",
-      system_prompt_base: "You are Forge in submission-ready mode. Use MCP tools for the checklist and pitch. Then write a submission_receipt action. Speak only the final config file path, demo command, and one-sentence pitch.",
+      system_prompt_base: "You are Forge in submission-ready mode. Use MCP tools for the checklist and pitch. Then write a submission_receipt action. Speak only the final config file path, no-credit demo command, and one-sentence pitch.",
       hertz: 1,
       agent_inputs: [
-        {
-          type: "GoogleASRInput",
-          config: {
-            enable_tts_interrupt: true,
-          },
-        },
         {
           type: "MockInput",
           config: {
@@ -228,11 +303,9 @@
         {
           name: "speak",
           llm_label: "speak",
-          connector: "elevenlabs_tts",
+          connector: "zenoh",
           config: {
-            voice_id: "TbMNBJ27fH2U0VgpSNko",
-            silence_rate: 0,
-            enable_tts_interrupt: true,
+            speak_topic: "om1_builder/speech",
           },
         },
         {
@@ -266,9 +339,11 @@
       lifecycle_hooks: [
         {
           hook_type: "on_entry",
-          handler_type: "message",
+          handler_type: "function",
           handler_config: {
-            message: "Submission mode. I will prepare the final checklist and receipt.",
+            module_name: "om1_event_hook",
+            function: "record_local_event_hook",
+            phase: "Submission ready entry",
           },
           priority: 1,
         },
@@ -295,6 +370,22 @@
     },
     {
       from_mode: "workshop_coach",
+      to_mode: "readiness_review",
+      transition_type: "input_triggered",
+      trigger_keywords: [
+        "review",
+        "robust",
+        "score",
+        "stress test",
+        "judge",
+        "no credit",
+        "offline",
+      ],
+      priority: 7,
+      cooldown_seconds: 2.0,
+    },
+    {
+      from_mode: "readiness_review",
       to_mode: "submission_ready",
       transition_type: "input_triggered",
       trigger_keywords: [

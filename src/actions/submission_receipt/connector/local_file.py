@@ -33,12 +33,11 @@ class SubmissionReceiptLocalFileConnector(ActionConnector[SubmissionReceiptLocal
                 f"- Agent: {output_interface.agent_name or 'Forge'}",
                 f"- Concept: {output_interface.concept or 'OM1 build captain'}",
                 f"- Modes: {output_interface.modes or 'welcome, workshop_coach, submission_ready'}",
-                f"- MCP tools: {output_interface.mcp_tools or 'event schedule, blueprint, checklist, pitch'}",
-                f"- Checklist: {output_interface.checklist or 'Validate config, run modes, push fork link'}",
-                f"- Demo script: {output_interface.demo_script or 'Ask Forge what to build and how to submit'}",
+                f"- MCP tools: {output_interface.mcp_tools or 'event schedule, blueprint, readiness scoring, recovery, checklist, pitch'}",
+                f"- Checklist: {output_interface.checklist or 'Validate config, run modes, open WebSim, push public config link'}",
+                f"- Demo script: {output_interface.demo_script or 'Ask Forge to judge whether the OM1 submission is creative and robust'}",
                 "",
             ]
         )
         output_path.write_text(body, encoding="utf-8")
         logging.info(f"Submission receipt written to {output_path}")
-
