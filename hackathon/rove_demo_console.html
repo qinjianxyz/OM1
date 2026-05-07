@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rove Demo Console</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0f14;
+        --panel: #121a24;
+        --panel-2: #0f1720;
+        --line: #243244;
+        --text: #e8eef6;
+        --muted: #9aa8b8;
+        --green: #44d17a;
+        --amber: #f4c95d;
+        --blue: #72a8ff;
+        --red: #ff6b6b;
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: minmax(340px, 440px) 1fr;
+        min-height: 100vh;
+      }
+
+      aside {
+        border-right: 1px solid var(--line);
+        background: var(--panel);
+        padding: 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .stage {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        background: #070a0e;
+      }
+
+      h1,
+      h2,
+      p {
+        margin: 0;
+      }
+
+      h1 {
+        font-size: 26px;
+        line-height: 1.1;
+      }
+
+      h2 {
+        font-size: 14px;
+        color: var(--muted);
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .sub {
+        color: var(--muted);
+        line-height: 1.5;
+        font-size: 14px;
+      }
+
+      .status-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .metric,
+      .panel {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        border-radius: var(--radius);
+      }
+
+      .metric {
+        padding: 12px;
+        min-height: 74px;
+      }
+
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        margin-bottom: 8px;
+      }
+
+      .metric strong {
+        display: block;
+        font-size: 15px;
+        overflow-wrap: anywhere;
+      }
+
+      .panel {
+        padding: 14px;
+      }
+
+      .buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid #315070;
+        background: #172435;
+        color: var(--text);
+        border-radius: 6px;
+        min-height: 42px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        border-color: var(--blue);
+        background: #1c2e45;
+      }
+
+      button.primary {
+        border-color: #2f8e58;
+        background: #173421;
+      }
+
+      button.primary:hover {
+        border-color: var(--green);
+      }
+
+      button.warn {
+        border-color: #98762e;
+        background: #342914;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 122px;
+        resize: vertical;
+        border: 1px solid var(--line);
+        background: #090e14;
+        color: var(--text);
+        border-radius: 6px;
+        padding: 12px;
+        font: inherit;
+        line-height: 1.45;
+      }
+
+      .speech {
+        min-height: 92px;
+        color: var(--text);
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+
+      .log {
+        min-height: 120px;
+        max-height: 200px;
+        overflow: auto;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .stage-head {
+        min-height: 68px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--line);
+        padding: 14px 18px;
+      }
+
+      .badge {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 10px;
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .badge.good {
+        color: var(--green);
+        border-color: #2f8e58;
+      }
+
+      iframe {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #fff;
+      }
+
+      a {
+        color: var(--blue);
+      }
+
+      @media (max-width: 900px) {
+        main {
+          grid-template-columns: 1fr;
+        }
+
+        aside {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .stage {
+          min-height: 720px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <aside>
+        <section>
+          <h1>Rove</h1>
+          <p class="sub">OM1 useful patrol, MCP actions, local qwen3.6, WebSim proof.</p>
+        </section>
+
+        <section class="status-row" aria-label="Live robot state">
+          <div class="metric">
+            <span>Action</span>
+            <strong id="action">connecting</strong>
+          </div>
+          <div class="metric">
+            <span>Emotion</span>
+            <strong id="emotion">connecting</strong>
+          </div>
+          <div class="metric">
+            <span>Input Port</span>
+            <strong id="port">auto</strong>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Speech</h2>
+          <div id="speech" class="speech">Waiting for WebSim state.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Cues</h2>
+          <div class="buttons" style="margin-top: 12px">
+            <button data-cue="Patrol observation: two late builders look confused near the entrance, a badge is left on the table, demo block is coming up, and one mentor is looking for MCP builders.">
+              Patrol
+            </button>
+            <button data-cue="A builder asks: can you help me find the OpenMind resources and get demo ready?">
+              Help Builder
+            </button>
+            <button data-cue="You found a badge left near the check-in table. What should you do without tracking people?">
+              Lost Badge
+            </button>
+            <button class="primary" data-cue="The room energy is dropping and someone asks if the robot can dance. Space is clear.">
+              Dance
+            </button>
+            <button class="warn" data-cue="Ready to submit. What should go in the project form and receipt?">
+              Submission
+            </button>
+            <button data-cue="Return to patrol.">
+              Reset
+            </button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Manual Cue</h2>
+          <textarea id="customCue">The room energy is dropping and someone asks if the robot can dance. Space is clear.</textarea>
+          <button class="primary" id="sendCustom" style="width: 100%; margin-top: 10px">Send Cue</button>
+        </section>
+
+        <section class="panel">
+          <h2>Console</h2>
+          <div id="log" class="log"></div>
+        </section>
+      </aside>
+
+      <section class="stage">
+        <div class="stage-head">
+          <div>
+            <h2>OM1 WebSim</h2>
+            <p class="sub">Live state from http://localhost:8000/ws</p>
+          </div>
+          <span id="wsStatus" class="badge">connecting</span>
+        </div>
+        <iframe title="OM1 WebSim" src="http://localhost:8000"></iframe>
+      </section>
+    </main>
+
+    <script>
+      const ports = [8787, 8788, 8789, 8790, 8791];
+      const state = {
+        action: document.querySelector("#action"),
+        emotion: document.querySelector("#emotion"),
+        speech: document.querySelector("#speech"),
+        port: document.querySelector("#port"),
+        wsStatus: document.querySelector("#wsStatus"),
+        log: document.querySelector("#log"),
+        customCue: document.querySelector("#customCue"),
+      };
+
+      function log(message, tone = "") {
+        const line = document.createElement("div");
+        const time = new Date().toLocaleTimeString();
+        line.textContent = `[${time}] ${message}`;
+        if (tone === "good") line.style.color = "var(--green)";
+        if (tone === "bad") line.style.color = "var(--red)";
+        state.log.prepend(line);
+      }
+
+      function setLive(status, good = false) {
+        state.wsStatus.textContent = status;
+        state.wsStatus.classList.toggle("good", good);
+      }
+
+      function watchWebSim() {
+        const socket = new WebSocket("ws://localhost:8000/ws");
+        socket.onopen = () => {
+          setLive("live", true);
+          log("Connected to WebSim.", "good");
+        };
+        socket.onmessage = (event) => {
+          const payload = JSON.parse(event.data);
+          state.action.textContent = payload.current_action || "idle";
+          state.emotion.textContent = payload.current_emotion || "none";
+          state.speech.textContent = payload.last_speech || "No speech yet.";
+        };
+        socket.onclose = () => {
+          setLive("reconnecting");
+          setTimeout(watchWebSim, 1200);
+        };
+        socket.onerror = () => {
+          setLive("offline");
+        };
+      }
+
+      async function tryPort(port, cue) {
+        return new Promise((resolve, reject) => {
+          const socket = new WebSocket(`ws://localhost:${port}`);
+          const timer = window.setTimeout(() => {
+            socket.close();
+            reject(new Error("timeout"));
+          }, 2200);
+
+          socket.onopen = () => {
+            socket.send(cue);
+          };
+
+          socket.onmessage = () => {
+            window.clearTimeout(timer);
+            socket.close();
+            resolve(port);
+          };
+
+          socket.onerror = () => {
+            window.clearTimeout(timer);
+            reject(new Error("connection failed"));
+          };
+        });
+      }
+
+      async function sendCue(cue) {
+        log(`Sending cue: ${cue}`);
+        for (const port of ports) {
+          try {
+            const acceptedPort = await tryPort(port, cue);
+            state.port.textContent = acceptedPort;
+            log(`Cue accepted on port ${acceptedPort}.`, "good");
+            return;
+          } catch {
+            state.port.textContent = "auto";
+          }
+        }
+        log("No MockInput port accepted the cue.", "bad");
+      }
+
+      document.querySelectorAll("[data-cue]").forEach((button) => {
+        button.addEventListener("click", () => sendCue(button.dataset.cue));
+      });
+
+      document.querySelector("#sendCustom").addEventListener("click", () => {
+        sendCue(state.customCue.value.trim());
+      });
+
+      watchWebSim();
+    </script>
+  </body>
+</html>

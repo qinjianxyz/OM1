@@ -44,6 +44,16 @@ The driver sends a MockInput cue, then reads WebSim back as a receipt. For the
 dance cue, the target receipt is `action: dance`, `emotion: excited`, and a short
 spoken line explaining the safe dance break.
 
+Optional browser console:
+
+```bash
+python3 -m http.server 8010
+```
+
+Open `http://localhost:8010/hackathon/rove_demo_console.html`. The console embeds
+WebSim and sends cues to the MockInput WebSocket ports, so you do not need to
+open `8787` directly.
+
 ## Manual Demo Prompts
 
 ```text
